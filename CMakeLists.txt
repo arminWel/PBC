@@ -56,3 +56,9 @@ target_link_libraries(server_test
   PRIVATE server
   Botan::Botan
   Catch2::Catch2WithMain)
+
+
+enable_testing()
+add_test(NAME server_test
+  COMMAND
+  $<TARGET_FILE:server_test>)
