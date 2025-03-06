@@ -41,9 +41,18 @@ add_library(
   server
   ${CMAKE_SOURCE_DIR}/server.cpp
 )
+
+add_executable(
+  server_test
+  ${CMAKE_SOURCE_DIR}/server_test.cpp
+)
 # target_include_directories(main PUBLIC /opt/homebrew/Cellar/botan)
 # link_directories(/opt/homebrew/Cellar/botan/3.7.1/)
 target_link_libraries(server PRIVATE Botan::Botan
   nlohmann_json::nlohmann_json)
 target_link_libraries( main PRIVATE Botan::Botan
+  Catch2::Catch2WithMain)
+target_link_libraries(server_test
+  PRIVATE server
+  Botan::Botan
   Catch2::Catch2WithMain)

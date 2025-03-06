@@ -8,6 +8,7 @@
 using json = nlohmann::json;
 class Server {
 public:
+  Server();
   /**
    * @brief Registers a user. Generate a RSA encryption key
    * pair, where the private key is saved alongside with the
@@ -40,6 +41,7 @@ private:
                             std::vector<uint8_t> &user_pub_key,
                             std::vector<uint8_t> &server_dec_key);
   void write_db();
+  friend class ServerTest;
 };
 
 #endif // srcserverserver_

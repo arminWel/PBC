@@ -14,6 +14,8 @@
 #include <string>
 #include <string_view>
 using json = nlohmann::json;
+Server::Server() { this->db = json(); }
+
 std::vector<uint8_t>
 Server::register_user(std::string &username,
                       std::vector<uint8_t> &user_pub_key_view) {
