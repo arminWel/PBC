@@ -18,7 +18,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # set(CMAKE_PREFIX_PATH /opt/homebrew/Cellar/botan/3.7.1/)
-find_package(catch2 REQUIRED)
+find_package(Catch2 REQUIRED)
 find_package(botan REQUIRED)
 find_package(nlohmann_json REQUIRED)
 

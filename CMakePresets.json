@@ -9,12 +9,12 @@
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
       }
     }
-  ]
+  ],
   "buildPresets": [
     {
       "name": "default",
       "displayName": "Default",
-      "conigurePreset": "vcpkg",
+      "configurePreset": "vcpkg"
     }
   ]
 }
