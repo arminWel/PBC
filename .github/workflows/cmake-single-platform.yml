@@ -24,10 +24,8 @@ jobs:
     - uses: actions/cache@v3
     - uses: lukka/get-cmake@latest
 
-    - name: Setup anew (or from cache) vcpkg (and does not build any package)
-      uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+    - name: Bootstrap vcpkg
+      run: ${{ github.workspace }}/vcpkg/bootstrap-vcpkg.sh
 
 
     - name: Run CMake consuming CMakePreset.json and run vcpkg to build packages
