@@ -1,14 +1,6 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.31)
 project(pbc)
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(default_build_type "Debug")
-  message(STATUS "Set the build type to `${default_build_type}` as none was specified.")
-  set(CMAKE_BUILD_TYPE ${default_build_type} CACHE STRING "Chooce the build type." FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-  "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
-message(STATUS "pbc Build Type: ${CMAKE_BUILD_TYPE}")
 
 # Set the version for pbc
 set(pbc_Version_Major 0)
@@ -25,9 +17,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_PREFIX_PATH /opt/homebrew/Cellar/botan/3.7.1/)
+# set(CMAKE_PREFIX_PATH /opt/homebrew/Cellar/botan/3.7.1/)
 find_package(catch2 REQUIRED)
-find_package(Botan REQUIRED)
+find_package(botan REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
 
@@ -48,14 +40,15 @@ add_executable(
 )
 # target_include_directories(main PUBLIC /opt/homebrew/Cellar/botan)
 # link_directories(/opt/homebrew/Cellar/botan/3.7.1/)
-target_link_libraries(server PRIVATE Botan::Botan
+target_link_libraries(server PRIVATE Botan::Botan-static
   nlohmann_json::nlohmann_json)
-target_link_libraries( main PRIVATE Botan::Botan
+target_link_libraries( main PRIVATE Botan::Botan-static
   Catch2::Catch2WithMain)
 target_link_libraries(server_test
   PRIVATE server
-  Botan::Botan
-  Catch2::Catch2WithMain)
+  Botan::Botan-static
+  Catch2::Catch2WithMain
+  nlohmann_json::nlohmann_json)
 
 
 enable_testing()
