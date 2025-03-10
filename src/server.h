@@ -1,7 +1,6 @@
 #ifndef srcserverserver_
 #define srcserverserver_
 
-#include "Cellar/nlohmann-json/3.11.3/include/nlohmann/json_fwd.hpp"
 #include <botan/secmem.h>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -29,7 +28,8 @@ private:
   Botan::secure_vector<char> db_password;
   /**
    * @brief Create a json entry using the given parameters and
-   * write it to the database  db.
+   * write it to the database  db. Throws an invalid argument, if the
+   * user already exists.
    *
    * @param username username, under which the data is safed.
    * Should be unique.
@@ -40,6 +40,7 @@ private:
   void add_user_entry_to_db(std::string &username,
                             std::vector<uint8_t> &user_pub_key,
                             std::vector<uint8_t> &server_dec_key);
+
   void write_db();
   friend class ServerTest;
 };

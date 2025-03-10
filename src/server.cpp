@@ -46,5 +46,8 @@ void Server::add_user_entry_to_db(std::string &username,
                                   std::vector<uint8_t> &server_dec_key) {
   json exp = {{"user_pub_key", user_pub_key},
               {"server_dec_key", server_dec_key}};
+  if (this->db.contains(username)) {
+    throw std::invalid_argument("User already exists");
+  }
   this->db[username] = exp;
 }
