@@ -7,7 +7,7 @@
 using json = nlohmann::json;
 class Server {
 public:
-  Server();
+  Server(Botan::secure_vector<char> db_password);
   /**
    * @brief Registers a user. Generate a RSA encryption key
    * pair, where the private key is saved alongside with the
@@ -19,8 +19,9 @@ public:
    * of the user.
    * @return X509 encoded public encryption key of the server.
    */
-  std::vector<uint8_t> register_user(std::string &username,
-                                     std::vector<uint8_t> &user_pub_key_view);
+  std::vector<uint8_t>
+  register_user(const std::string &username,
+                const std::vector<uint8_t> &user_pub_key_view);
 
 private:
   std::string db_name;
@@ -37,9 +38,9 @@ private:
    * @param server_dec_key encrypted private key of the
    * server.
    */
-  void add_user_entry_to_db(std::string &username,
-                            std::vector<uint8_t> &user_pub_key,
-                            std::vector<uint8_t> &server_dec_key);
+  void add_user_entry_to_db(const std::string &username,
+                            const std::vector<uint8_t> &user_pub_key,
+                            const std::vector<uint8_t> &server_dec_key);
 
   void write_db();
   friend class ServerTest;
