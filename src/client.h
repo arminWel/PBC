@@ -46,11 +46,34 @@ protected:
    * @return Botan::secure_vector<uint8_t> The user password.
    */
   virtual Botan::secure_vector<uint8_t> get_pw() = 0;
+  /**
+   * @brief Create a RNG with @p key as the seed, that
+   * directly reads in the password using the get_pw()
+   * function.
+   *
+   * @param key_mac Seed for the MAC
+   * @param key_rng Seed for the RNG
+   * @return The seeded RNG.
+   */
   std::unique_ptr<Botan::HMAC_DRBG>
-  get_rng_explicit_rand(const Botan::secure_vector<uint8_t> &key);
+  get_rng_explicit_rand(const Botan::secure_vector<uint8_t> &key_mac,
+                        const Botan::secure_vector<uint8_t> &key_rng);
+
+  /**
+   * @brief Get a private signing key depending on @p key and
+   * the password from get_pw()
+   *
+   *
+   * @param key_mac Seed for the MAC
+   * @param key_rng The key, with which the rng is seeded
+   *
+   * @return The private signing key
+   */
   std::unique_ptr<Botan::ECDSA_PrivateKey>
-  get_sign_sk(const Botan::secure_vector<uint8_t> &key);
-  Botan::secure_vector<uint8_t> key_k;
+  get_sign_sk(const Botan::secure_vector<uint8_t> &key_mac,
+              const Botan::secure_vector<uint8_t> &key_rng);
+  Botan::secure_vector<uint8_t> key_rng;
+  Botan::secure_vector<uint8_t> key_mac;
   std::vector<uint8_t> server_enc_key;
   std::string username;
 };
