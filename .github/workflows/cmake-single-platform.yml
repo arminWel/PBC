@@ -14,16 +14,15 @@ env:
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
       with: 
         submodules: true
+
     - uses: actions/cache@v3
+
     - uses: lukka/get-cmake@latest
 
     - name: Bootstrap vcpkg
@@ -33,9 +32,9 @@ jobs:
     - name: Run CMake consuming CMakePreset.json and run vcpkg to build packages
       uses: lukka/run-cmake@v10
       with:
-        configurePreset: 'vcpkg'
-        buildPreset: 'default'
+        configurePreset: 'vcpkg-release'
+        buildPreset: 'release'
 
     - name: Run latest
-      run: ctest --output-on-failure --test-dir build
+      run: ctest --output-on-failure --test-dir build/release
 
