@@ -2,7 +2,9 @@
 #include <botan/auto_rng.h>
 #include <botan/ec_group.h>
 #include <botan/ecdsa.h>
+#include <botan/pk_algs.h>
 #include <botan/pubkey.h>
+#include <botan/rsa.h>
 #include <botan/secmem.h>
 #include <botan/x509_key.h>
 #include <catch2/catch_test_macros.hpp>
@@ -88,7 +90,7 @@ TEST_CASE("Client key generation", "[client][keys]") {
     REQUIRE(drbg->is_seeded());
     drbg->randomize(random_data.data(), random_data.size());
 
-    SECTION("RNG generation differs with differnt Passwords") {
+    SECTION("RNG generation differs with different Passwords") {
       // Verify that we get the same output with the same seed
       client.pw[0]++;
       auto drbg2 = client.pub_get_rng_explicit_rand(test_key);
@@ -128,6 +130,11 @@ TEST_CASE("Client key generation", "[client][keys]") {
 TEST_CASE("Client registration process", "[client][registration]") {
   ClientTest client("test_user");
 
+  SECTION("register_stage_1 fails with invalid username") {
+    ClientTest invalid_client("");
+    REQUIRE_THROWS_AS(invalid_client.register_stage_1(), std::invalid_argument);
+  }
+
   SECTION("Registration stage 1 generates public key") {
     auto pub_key = client.register_stage_1();
     REQUIRE_FALSE(pub_key.empty());
@@ -135,16 +142,24 @@ TEST_CASE("Client registration process", "[client][registration]") {
 
     // Verify pub_key is a valid public key
     std::unique_ptr<Botan::Public_Key> loaded_key;
-    REQUIRE_NOTHROW(loaded_key = Botan::X509::load_key(pub_key));
+    loaded_key = Botan::X509::load_key(pub_key);
 
     Botan::AutoSeeded_RNG rng;
     REQUIRE(loaded_key->check_key(rng, true));
   }
 
-  SECTION("Registration stage 2 stores server key") {
-    std::vector<uint8_t> server_key = {0, 1, 2, 3, 4, 5};
-    client.register_stage_2(server_key);
-    REQUIRE(client.server_enc_key == server_key);
+  SECTION("register_stage_2 fails with invalid server key") {
+    std::vector<uint8_t> invalid_server_key = {};
+    REQUIRE_THROWS_AS(client.register_stage_2(invalid_server_key),
+                      std::invalid_argument);
+  }
+
+  SECTION("register_stage_2 succeeds with valid server key") {
+    Botan::AutoSeeded_RNG rng;
+    auto key = Botan::create_private_key("RSA", rng);
+    auto serialized_key = Botan::X509::BER_encode(*key->public_key());
+    REQUIRE_NOTHROW(client.register_stage_2(serialized_key));
+    REQUIRE(client.server_enc_key == serialized_key);
   }
 
   SECTION("Full registration flow") {
