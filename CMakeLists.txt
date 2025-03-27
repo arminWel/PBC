@@ -30,26 +30,15 @@ add_library(
   ${PROJECT_SOURCE_DIR}/server.cpp
 )
 
-add_library(
-  client
-  ${PROJECT_SOURCE_DIR}/client.cpp
-)
-
 add_executable(
   server_test
   ${PROJECT_SOURCE_DIR}/server_test.cpp
-)
-add_executable(
-  client_test
-  ${PROJECT_SOURCE_DIR}/client_test.cpp
 )
 
 set(COMMON_LIBS Botan::Botan-static nlohmann_json::nlohmann_json)
 
 target_link_libraries(server PRIVATE ${COMMON_LIBS})
-target_link_libraries(client PRIVATE ${COMMON_LIBS})
 target_link_libraries(main PRIVATE ${COMMON_LIBS} Catch2::Catch2WithMain)
-target_link_libraries(client_test PRIVATE client ${COMMON_LIBS} Catch2::Catch2WithMain)
 target_link_libraries(server_test PRIVATE server ${COMMON_LIBS} Catch2::Catch2WithMain)
 
 
@@ -57,6 +46,4 @@ enable_testing()
 add_test(NAME server_test
   COMMAND
   $<TARGET_FILE:server_test>)
-add_test(NAME client_test
-  COMMAND
-  $<TARGET_FILE:client_test>)
+
