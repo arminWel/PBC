@@ -35,24 +35,45 @@ add_library(
   ${CMAKE_SOURCE_DIR}/server.cpp
 )
 
+add_library(
+  client
+  ${CMAKE_SOURCE_DIR}/client.cpp
+)
+
 add_executable(
   server_test
   ${CMAKE_SOURCE_DIR}/server_test.cpp
+)
+add_executable(
+  client_test
+  ${CMAKE_SOURCE_DIR}/client_test.cpp
 )
 # target_include_directories(main PUBLIC /opt/homebrew/Cellar/botan)
 # link_directories(/opt/homebrew/Cellar/botan/3.7.1/)
 target_link_libraries(server PRIVATE Botan::Botan-static
   nlohmann_json::nlohmann_json)
+target_link_libraries(client PRIVATE Botan::Botan-static
+  nlohmann_json::nlohmann_json)
 target_link_libraries( main PRIVATE Botan::Botan-static
   Catch2::Catch2WithMain)
-target_link_libraries(server_test
-  PRIVATE server
+target_link_libraries(client_test
+  PRIVATE
+  client
   Botan::Botan-static
   Catch2::Catch2WithMain
   nlohmann_json::nlohmann_json)
 
+target_link_libraries(server_test
+  PRIVATE 
+  server
+  Botan::Botan-static
+  Catch2::Catch2WithMain
+  nlohmann_json::nlohmann_json)
 
 enable_testing()
 add_test(NAME server_test
   COMMAND
   $<TARGET_FILE:server_test>)
+add_test(NAME client_test
+  COMMAND
+  $<TARGET_FILE:client_test>)
