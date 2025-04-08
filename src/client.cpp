@@ -1,16 +1,16 @@
 #include "client.h"
+#include "common.h"
 #include <botan/auto_rng.h>
 #include <botan/ecdsa.h>
+#include <botan/exceptn.h>
 #include <botan/hmac_drbg.h>
 #include <botan/secmem.h>
 #include <botan/x509_key.h>
 #include <cstdint>
 #include <memory>
-#include <vector>
 
 Client::Client(const std::string &username) : username(username) {};
-Client::Client(const std::vector<uint8_t> &server_enc_key,
-               const std::string &username)
+Client::Client(const std::string &server_enc_key, const std::string &username)
     : server_enc_key(server_enc_key), username(username) {};
 
 std::unique_ptr<Botan::HMAC_DRBG>
@@ -32,18 +32,31 @@ Client::get_sign_sk(const Botan::secure_vector<uint8_t> &key_rng) {
   return sign_sk;
 };
 
-std::vector<uint8_t> Client::register_stage_1() {
+std::string Client::register_stage_1() {
+  if (this->username.empty()) {
+    throw std::invalid_argument("Username cannot be empty");
+  }
   Botan::AutoSeeded_RNG rng;
   size_t key_length = BOTAN_RNG_RESEED_POLL_BITS;
   Botan::secure_vector<uint8_t> key_rng(key_length);
+
   rng.randomize(key_rng.data(), key_length);
 
   auto sign_sk = this->get_sign_sk(key_rng);
 
   this->key_rng = key_rng;
-  return Botan::X509::BER_encode(*sign_sk->public_key());
+  return Botan::X509::PEM_encode(*sign_sk->public_key());
 };
 
-void Client::register_stage_2(const std::vector<uint8_t> &server_enc_key) {
+void Client::register_stage_2(const std::string &server_enc_key) {
+  Botan::AutoSeeded_RNG rng;
+  try {
+    auto key = PBC::load_key(server_enc_key);
+    if (not key->check_key(rng, true)) {
+      throw std::invalid_argument("Invalid server key");
+    }
+  } catch (const Botan::Stream_IO_Error &e) {
+    throw std::invalid_argument("Empty server key");
+  }
   this->server_enc_key = server_enc_key;
 };

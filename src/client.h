@@ -5,7 +5,6 @@
 #include <botan/secmem.h>
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <vector>
 using json = nlohmann::json;
 
 class Client {
@@ -20,15 +19,14 @@ public:
    * @param username The username of the client.
    * @return Client object.
    */
-  Client(const std::vector<uint8_t> &server_enc_key,
-         const std::string &username);
+  Client(const std::string &server_enc_key, const std::string &username);
   /**
    * @brief First stage of the registration process. Generates a seed key_k,
    * saves it, and, using the password, derives a signature key pair. The public
    * part of it is the return value.
    * @return serialized public signature key.
    */
-  std::vector<uint8_t> register_stage_1();
+  std::string register_stage_1();
   /**
    * @brief Second stage of the registration process. Accepts the serialized
    * server encryption key saves it.
@@ -37,7 +35,7 @@ public:
    * Sets this->server_enc_key
    *
    */
-  void register_stage_2(const std::vector<uint8_t> &server_enc_key);
+  void register_stage_2(const std::string &server_enc_key);
 
 protected:
   /**
@@ -69,7 +67,7 @@ protected:
   std::unique_ptr<Botan::ECDSA_PrivateKey>
   get_sign_sk(const Botan::secure_vector<uint8_t> &key_rng);
   Botan::secure_vector<uint8_t> key_rng;
-  std::vector<uint8_t> server_enc_key;
+  std::string server_enc_key;
   std::string username;
 };
 #endif

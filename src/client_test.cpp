@@ -1,4 +1,5 @@
 #include "client.h"
+#include "common.h"
 #include <botan/auto_rng.h>
 #include <botan/ec_group.h>
 #include <botan/ecdsa.h>
@@ -7,29 +8,25 @@
 #include <botan/rsa.h>
 #include <botan/secmem.h>
 #include <botan/x509_key.h>
-#include <catch2/catch_test_macros.hpp>
+#include <gtest/gtest.h>
 #include <memory>
+#include <string>
 #include <vector>
 
 class ClientTest : public Client {
 public:
   ClientTest(const std::string &username) : Client(username) {}
-  ClientTest(const std::vector<uint8_t> &server_enc_key,
-             const std::string &username)
+  ClientTest(const std::string &server_enc_key, const std::string &username)
       : Client(server_enc_key, username) {}
 
-  // Expose protected members for testing
   using Client::key_rng;
   using Client::server_enc_key;
   using Client::username;
 
-  // Expose the password for testing
   Botan::secure_vector<uint8_t> pw = {'t', 'e', 's', 't', 'p', 'a', 's', 's'};
 
-  // Override virtual method to provide test password
   Botan::secure_vector<uint8_t> get_pw() override { return this->pw; }
 
-  // Expose protected methods for testing
   std::unique_ptr<Botan::HMAC_DRBG>
   pub_get_rng_explicit_rand(const Botan::secure_vector<uint8_t> &key_rng) {
     return get_rng_explicit_rand(key_rng);
@@ -41,135 +38,142 @@ public:
   }
 };
 
-TEST_CASE("Client initialization", "[client]") {
+class ClientInitializationFixture : public ::testing::Test {
+protected:
   std::string username = "test_user";
+};
 
-  SECTION("Initialize client with username only") {
-    ClientTest client(username);
-    REQUIRE(client.username == username);
-    REQUIRE(client.key_rng.empty());
-  }
-
-  SECTION("Initialize client with username and server key") {
-    std::vector<uint8_t> server_key = {0, 1, 2, 3, 4};
-    ClientTest client(server_key, username);
-    REQUIRE(client.username == username);
-    REQUIRE(client.server_enc_key == server_key);
-    REQUIRE(client.key_rng.empty());
-  }
+TEST_F(ClientInitializationFixture, InitializeWithUsernameOnly) {
+  ClientTest client(username);
+  EXPECT_EQ(client.username, username);
+  EXPECT_TRUE(client.key_rng.empty());
 }
 
-TEST_CASE("Client key generation", "[client][keys]") {
-  ClientTest client("test_user");
+TEST_F(ClientInitializationFixture, InitializeWithUsernameAndServerKey) {
+  std::string server_key = {0, 1, 2, 3, 4};
+  ClientTest client(server_key, username);
+  EXPECT_EQ(client.username, username);
+  EXPECT_EQ(client.server_enc_key, server_key);
+  EXPECT_TRUE(client.key_rng.empty());
+}
+
+class ClientKeyGenerationFixture : public ::testing::Test {
+protected:
+  ClientTest client{"test_user"};
   Botan::AutoSeeded_RNG rng;
-  Botan::secure_vector<uint8_t> test_key(BOTAN_RNG_RESEED_POLL_BITS);
-  rng.randomize(test_key.data(), test_key.size());
+  Botan::secure_vector<uint8_t> test_key;
 
-  SECTION("RNG generation works with seed") {
-    auto drbg = client.pub_get_rng_explicit_rand(test_key);
-    REQUIRE(drbg != nullptr);
-
-    // Verify RNG produces output
-    std::vector<uint8_t> random_data(16);
-    REQUIRE(drbg->is_seeded());
-    drbg->randomize(random_data.data(), random_data.size());
-
-    // Verify that we get the same output with the same seed
-    auto drbg2 = client.pub_get_rng_explicit_rand(test_key);
-    std::vector<uint8_t> random_data2(16);
-    drbg2->randomize(random_data2.data(), random_data2.size());
-
-    REQUIRE(random_data == random_data2);
+  void SetUp() override {
+    test_key.resize(BOTAN_RNG_RESEED_POLL_BITS);
+    rng.randomize(test_key.data(), test_key.size());
   }
-  SECTION("RNG generation differs with different inputs") {
-    auto drbg = client.pub_get_rng_explicit_rand(test_key);
-    REQUIRE(drbg != nullptr);
+};
 
-    // Verify RNG produces output
-    std::vector<uint8_t> random_data(16);
-    REQUIRE(drbg->is_seeded());
-    drbg->randomize(random_data.data(), random_data.size());
+TEST_F(ClientKeyGenerationFixture, RNGGenerationWithSeed) {
+  auto drbg = client.pub_get_rng_explicit_rand(test_key);
+  ASSERT_NE(drbg, nullptr);
 
-    SECTION("RNG generation differs with different Passwords") {
-      // Verify that we get the same output with the same seed
-      client.pw[0]++;
-      auto drbg2 = client.pub_get_rng_explicit_rand(test_key);
-      std::vector<uint8_t> random_data2(16);
-      drbg2->randomize(random_data2.data(), random_data2.size());
+  std::vector<uint8_t> random_data(16);
+  EXPECT_TRUE(drbg->is_seeded());
+  drbg->randomize(random_data.data(), random_data.size());
 
-      REQUIRE(random_data != random_data2);
-    }
-    SECTION("RNG generation differs with different Seeds") {
-      // Verify that we get the same output with the same seed
-      test_key[0]++;
-      auto drbg2 = client.pub_get_rng_explicit_rand(test_key);
-      std::vector<uint8_t> random_data2(16);
-      drbg2->randomize(random_data2.data(), random_data2.size());
+  auto drbg2 = client.pub_get_rng_explicit_rand(test_key);
+  std::vector<uint8_t> random_data2(16);
+  drbg2->randomize(random_data2.data(), random_data2.size());
 
-      REQUIRE(random_data != random_data2);
-    }
-  }
-
-  SECTION("Signing key generation works") {
-    auto signing_key = client.pub_get_sign_sk(test_key);
-    REQUIRE(signing_key != nullptr);
-
-    // Verify key is valid
-    REQUIRE(signing_key->check_key(rng, true));
-
-    // Verify key is deterministic based on seed
-    auto signing_key2 = client.pub_get_sign_sk(test_key);
-    REQUIRE(signing_key->private_value() == signing_key2->private_value());
-
-    test_key[0]++;
-    signing_key2 = client.pub_get_sign_sk(test_key);
-    REQUIRE(signing_key->private_value() != signing_key2->private_value());
-  }
+  EXPECT_EQ(random_data, random_data2);
 }
 
-TEST_CASE("Client registration process", "[client][registration]") {
-  ClientTest client("test_user");
+TEST_F(ClientKeyGenerationFixture, RNGGenerationDiffersWithDifferentPasswords) {
+  auto drbg = client.pub_get_rng_explicit_rand(test_key);
+  ASSERT_NE(drbg, nullptr);
 
-  SECTION("register_stage_1 fails with invalid username") {
-    ClientTest invalid_client("");
-    REQUIRE_THROWS_AS(invalid_client.register_stage_1(), std::invalid_argument);
+  std::vector<uint8_t> random_data(16);
+  EXPECT_TRUE(drbg->is_seeded());
+  drbg->randomize(random_data.data(), random_data.size());
+
+  client.pw[0]++;
+  auto drbg2 = client.pub_get_rng_explicit_rand(test_key);
+  std::vector<uint8_t> random_data2(16);
+  drbg2->randomize(random_data2.data(), random_data2.size());
+
+  EXPECT_NE(random_data, random_data2);
+}
+
+TEST_F(ClientKeyGenerationFixture, RNGGenerationDiffersWithDifferentSeeds) {
+  auto drbg = client.pub_get_rng_explicit_rand(test_key);
+  ASSERT_NE(drbg, nullptr);
+
+  std::vector<uint8_t> random_data(16);
+  EXPECT_TRUE(drbg->is_seeded());
+  drbg->randomize(random_data.data(), random_data.size());
+
+  test_key[0]++;
+  auto drbg2 = client.pub_get_rng_explicit_rand(test_key);
+  std::vector<uint8_t> random_data2(16);
+  drbg2->randomize(random_data2.data(), random_data2.size());
+
+  EXPECT_NE(random_data, random_data2);
+}
+
+TEST_F(ClientKeyGenerationFixture, SigningKeyGenerationWorks) {
+  auto signing_key = client.pub_get_sign_sk(test_key);
+  ASSERT_NE(signing_key, nullptr);
+
+  EXPECT_TRUE(signing_key->check_key(rng, true));
+
+  auto signing_key2 = client.pub_get_sign_sk(test_key);
+  EXPECT_EQ(signing_key->private_value(), signing_key2->private_value());
+
+  test_key[0]++;
+  signing_key2 = client.pub_get_sign_sk(test_key);
+  EXPECT_NE(signing_key->private_value(), signing_key2->private_value());
+}
+
+class ClientRegistrationFixture : public ::testing::Test {
+protected:
+  ClientTest client{"test_user"};
+  Botan::AutoSeeded_RNG rng;
+  std::string serialized_enc_key;
+
+  void SetUp() override {
+    auto enc_key = Botan::create_private_key("RSA", rng);
+    serialized_enc_key = Botan::X509::PEM_encode(*enc_key->public_key());
   }
+};
 
-  SECTION("Registration stage 1 generates public key") {
-    auto pub_key = client.register_stage_1();
-    REQUIRE_FALSE(pub_key.empty());
-    REQUIRE_FALSE(client.key_rng.empty());
+TEST_F(ClientRegistrationFixture, RegistrationStage1FailsWithInvalidUsername) {
+  ClientTest invalid_client("");
+  EXPECT_THROW(invalid_client.register_stage_1(), std::invalid_argument);
+}
 
-    // Verify pub_key is a valid public key
-    std::unique_ptr<Botan::Public_Key> loaded_key;
-    loaded_key = Botan::X509::load_key(pub_key);
+TEST_F(ClientRegistrationFixture, RegistrationStage1GeneratesPublicKey) {
+  auto pub_key = client.register_stage_1();
+  EXPECT_FALSE(pub_key.empty());
+  EXPECT_FALSE(client.key_rng.empty());
 
-    Botan::AutoSeeded_RNG rng;
-    REQUIRE(loaded_key->check_key(rng, true));
-  }
+  std::unique_ptr<Botan::Public_Key> loaded_key;
+  loaded_key = PBC::load_key(pub_key);
 
-  SECTION("register_stage_2 fails with invalid server key") {
-    std::vector<uint8_t> invalid_server_key = {};
-    REQUIRE_THROWS_AS(client.register_stage_2(invalid_server_key),
-                      std::invalid_argument);
-  }
+  EXPECT_TRUE(loaded_key->check_key(rng, true));
+}
 
-  SECTION("register_stage_2 succeeds with valid server key") {
-    Botan::AutoSeeded_RNG rng;
-    auto key = Botan::create_private_key("RSA", rng);
-    auto serialized_key = Botan::X509::BER_encode(*key->public_key());
-    REQUIRE_NOTHROW(client.register_stage_2(serialized_key));
-    REQUIRE(client.server_enc_key == serialized_key);
-  }
+TEST_F(ClientRegistrationFixture, RegistrationStage2FailsWithInvalidServerKey) {
+  std::string invalid_server_key = {};
+  EXPECT_THROW(client.register_stage_2(invalid_server_key),
+               std::invalid_argument);
+}
 
-  SECTION("Full registration flow") {
-    // Stage 1: client generates key pair and sends public key
-    auto pub_key = client.register_stage_1();
-    REQUIRE_FALSE(client.key_rng.empty());
+TEST_F(ClientRegistrationFixture,
+       RegistrationStage2SucceedsWithValidServerKey) {
+  client.register_stage_2(serialized_enc_key);
+  EXPECT_EQ(client.server_enc_key, serialized_enc_key);
+}
 
-    // Stage 2: client receives server public key
-    std::vector<uint8_t> server_key = {0, 1, 2, 3, 4, 5};
-    client.register_stage_2(server_key);
-    REQUIRE(client.server_enc_key == server_key);
-  }
+TEST_F(ClientRegistrationFixture, FullRegistrationFlow) {
+  auto pub_key = client.register_stage_1();
+  EXPECT_FALSE(client.key_rng.empty());
+
+  client.register_stage_2(serialized_enc_key);
+  EXPECT_EQ(client.server_enc_key, serialized_enc_key);
 }
