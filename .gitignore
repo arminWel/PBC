@@ -46,3 +46,4 @@ _deps
 .cache/clangd/index
 CMakeUserPresets.json
 conanfile.txt
+vcpkg_installed

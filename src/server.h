@@ -19,9 +19,8 @@ public:
    * of the user.
    * @return X509 encoded public encryption key of the server.
    */
-  std::vector<uint8_t>
-  register_user(const std::string &username,
-                const std::vector<uint8_t> &user_pub_key_view);
+  std::string register_user(const std::string &username,
+                            const std::string &user_pub_key_view);
 
 private:
   std::string db_name;
@@ -39,8 +38,8 @@ private:
    * server.
    */
   void add_user_entry_to_db(const std::string &username,
-                            const std::vector<uint8_t> &user_pub_key,
-                            const std::vector<uint8_t> &server_dec_key);
+                            const std::string &user_pub_key,
+                            const std::string &server_dec_key);
 
   void write_db();
   friend class ServerTest;

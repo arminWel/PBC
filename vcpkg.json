@@ -1,7 +1,7 @@
 {
   "dependencies": [
-    "botan",
-    "catch2",
-    "nlohmann-json"
+    "nlohmann-json",
+    "gtest",
+    "botan"
   ]
 }

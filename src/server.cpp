@@ -1,4 +1,5 @@
 #include "server.h"
+#include "common.h"
 #include <botan/auto_rng.h>
 #include <botan/hex.h>
 #include <botan/pk_algs.h>
@@ -17,14 +18,13 @@ using json = nlohmann::json;
 Server::Server(Botan::secure_vector<char> db_password)
     : db(json()), db_password(db_password) {};
 
-std::vector<uint8_t>
-Server::register_user(const std::string &username,
-                      const std::vector<uint8_t> &user_pub_key_view) {
+std::string Server::register_user(const std::string &username,
+                                  const std::string &user_pub_key_view) {
   Botan::AutoSeeded_RNG rng;
 
   std::unique_ptr<Botan::Public_Key> user_pub_key;
   try {
-    user_pub_key = Botan::X509::load_key(user_pub_key_view);
+    user_pub_key = PBC::load_key(user_pub_key_view);
   } catch (...) {
     throw std::invalid_argument("User public key is malformed");
   }
@@ -38,18 +38,18 @@ Server::register_user(const std::string &username,
   auto pw_view =
       std::string_view(this->db_password.data(), this->db_password.size());
   auto encoded_server_enc_key =
-      Botan::PKCS8::BER_encode(*server_enc_key, rng, pw_view);
-  auto encoded_user_pub_key = Botan::X509::BER_encode(*user_pub_key);
+      Botan::PKCS8::PEM_encode(*server_enc_key, rng, pw_view);
+  auto encoded_user_pub_key = Botan::X509::PEM_encode(*user_pub_key);
 
   this->add_user_entry_to_db(username, encoded_user_pub_key,
                              encoded_server_enc_key);
 
-  return Botan::X509::BER_encode(*server_pub_key);
+  return Botan::X509::PEM_encode(*server_pub_key);
 }
 
 void Server::add_user_entry_to_db(const std::string &username,
-                                  const std::vector<uint8_t> &user_pub_key,
-                                  const std::vector<uint8_t> &server_dec_key) {
+                                  const std::string &user_pub_key,
+                                  const std::string &server_dec_key) {
   json exp = {{"user_pub_key", user_pub_key},
               {"server_dec_key", server_dec_key}};
   if (this->db.contains(username)) {
